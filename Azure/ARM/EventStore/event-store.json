@@ -600,6 +600,7 @@ sudo apt-get update && sudo apt-get install azure-cli
                   }
                 }
               ], 
+			  /* if you do not want an SSL cert, comment out the "sslCertificates" node below */
               "sslCertificates": [
                   {
                       "name": "[variables('appGatewayCertificateName')]",                      

@@ -862,9 +862,9 @@ sudo apt-get update && sudo apt-get install azure-cli
                               "autoUpgradeMinorVersion": true,
                               "settings": {
                                 "fileUris": [
-                                  "https://raw.githubusercontent.com/arj060892/AzureExt/master/Framework%20Installation/eventstoreinit.sh"
+                                  "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/installes.sh"
                                 ],
-                                "commandToExecute": "bash autopart.sh"
+                                "commandToExecute": "[concat('sh ', 'installes.sh')]"
                               }
                             }
                           }                  

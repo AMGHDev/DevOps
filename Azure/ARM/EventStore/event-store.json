@@ -200,7 +200,7 @@
                 "resourceType": "Event Store",
                 "eventStoreName": "[variables('eventStoreName')]"
             }
-        },       
+        },/*       
         {
             "type": "Microsoft.Network/publicIPAddresses",
             "name": "[variables('publicIPAddressName')]",
@@ -216,7 +216,7 @@
                     "domainNameLabel": "[concat(variables('longNamingPrefix'), '-management')]"
                 }
             }
-        },
+        },*/
         {
             "type": "Microsoft.Network/publicIPAddresses",
             "name": "[variables('loadBalancerIpAddressName')]",
@@ -375,7 +375,8 @@ sudo apt-get update && sudo apt-get install azure-cli
             "location": "[variables('computeLocation')]",
             "properties": {
                 "securityRules": [
-                    /* add open rules for any that need to access the jump box */                   
+                    /* add open rules for any that need to access the jump box */ 
+                                  
                     {
                         "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-jb-external-ssh')]",
                         "properties": {
@@ -407,12 +408,12 @@ sudo apt-get update && sudo apt-get install azure-cli
                         }
                     },                 
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-only-int-int')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-int')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
                             "destinationPortRange": "*",
-                            "sourceAddressPrefix": "[variables('internalSubnetPrefix')]",
+                            "sourceAddressPrefix": "AllowVnetInBound",
                             "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
                             "access": "Allow",
                             "priority": 1600,
@@ -450,7 +451,7 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    },
+                    }/*,
                     {
                         "name": "[concat(variables('networkSecurityGroupName'), '-rule-deny-all')]",
                         "properties": {
@@ -465,7 +466,7 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    }
+                    }*/
                 ],
                 "defaultSecurityRules": [
                     {
@@ -581,8 +582,7 @@ sudo apt-get update && sudo apt-get install azure-cli
             "type": "Microsoft.Network/applicationGateways",
             "location": "[variables('computeLocation')]",
             "dependsOn": [
-              "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
-              "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]"
+              "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
             ],
             "properties": {
               "sku": {
@@ -615,7 +615,7 @@ sudo apt-get update && sudo apt-get install azure-cli
                   "name": "[variables('appGatewayFrontendIPName')]",
                   "properties": {
                     "PublicIPAddress": {
-                      "id": "[variables('publicIPAddressID')]"
+                      /*"id": "[variables('publicIPAddressID')]",                      */
                     }
                   }
                 }
@@ -769,14 +769,14 @@ sudo apt-get update && sudo apt-get install azure-cli
                           }
                       }
                       /* if you want the index drive separate, uncomment the below */                                            
-                      ,{                          
+                      /*,{                          
                         "lun": 3,
                         "createOption": "Empty",
                         "diskSizeGB": "256",
                         "managedDisk":{
                             "storageAccountType":"[parameters('storageAccountType')]"
                         }
-                    }
+                    }*/
                   ]
                 },
                 "osProfile": {
@@ -837,7 +837,37 @@ sudo apt-get update && sudo apt-get install azure-cli
                   ]
                 }, 
                 "extensionProfile": {
-                    "extensions": [                       
+                    "extensions": [                            
+                        {
+                          "name": "disks-ext",
+                          "properties": {
+                            "publisher": "Microsoft.OSTCExtensions",
+                            "type": "CustomScriptForLinux",
+                            "typeHandlerVersion": "1.4",
+                            "autoUpgradeMinorVersion": true,
+                            "settings": {
+                              "fileUris": [
+                                "https://gist.githubusercontent.com/trentmswanson/9c22bb71182e982bd36f/raw/47330d83bd884e88ef56edf5dae5597a1d989554/autopart.sh"
+                              ],
+                              "commandToExecute": "bash autopart.sh"
+                            }
+                          }
+                        },
+                        {
+                            "name": "esinstall-ext",
+                            "properties": {
+                              "publisher": "Microsoft.OSTCExtensions",
+                              "type": "CustomScriptForLinux",
+                              "typeHandlerVersion": "1.4",
+                              "autoUpgradeMinorVersion": true,
+                              "settings": {
+                                "fileUris": [
+                                  "https://raw.githubusercontent.com/arj060892/AzureExt/master/Framework%20Installation/eventstoreinit.sh"
+                                ],
+                                "commandToExecute": "bash autopart.sh"
+                              }
+                            }
+                          }                  
                     ]
                 }
               }
@@ -868,4 +898,8 @@ i to insert, then edit, add line:
 UUID=33333333-3b3b-3c3c-3d3d-3e3e3e3e3e3e   /data   ext4   defaults,discard   1   2
 
 then ESC back to cmd, then :wq to save and exit
+
+$PublicConfiguration = '{"fileUris":
+[""],
+"commandToExecute": "bash autopart.sh" }'
 */

@@ -413,7 +413,7 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "protocol": "*",
                             "sourcePortRange": "*",
                             "destinationPortRange": "*",
-                            "sourceAddressPrefix": "AllowVnetInBound",
+                            "sourceAddressPrefix": "VirtualNetwork",
                             "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
                             "access": "Allow",
                             "priority": 1600,
@@ -614,8 +614,8 @@ sudo apt-get update && sudo apt-get install azure-cli
                 {
                   "name": "[variables('appGatewayFrontendIPName')]",
                   "properties": {
-                    "PublicIPAddress": {
-                      /*"id": "[variables('publicIPAddressID')]",                      */
+                    "subnet":{
+                        "id":"[concat(variables('vnetID'),'/subnets/',variables('gatewaySubnetName'))]"
                     }
                   }
                 }
@@ -839,35 +839,25 @@ sudo apt-get update && sudo apt-get install azure-cli
                 "extensionProfile": {
                     "extensions": [                            
                         {
-                          "name": "disks-ext",
+                            "name": "config-app",
+                            "type": "extensions",
+                            "location": "[resourceGroup().location]",
+                            "apiVersion": "2015-06-15",
                           "properties": {
-                            "publisher": "Microsoft.OSTCExtensions",
-                            "type": "CustomScriptForLinux",
-                            "typeHandlerVersion": "1.4",
+                            "publisher": "Microsoft.Azure.Extensions",
+                            "type": "CustomScript",
+                            "typeHandlerVersion": "2.0",
                             "autoUpgradeMinorVersion": true,
                             "settings": {
                               "fileUris": [
-                                "https://gist.githubusercontent.com/trentmswanson/9c22bb71182e982bd36f/raw/47330d83bd884e88ef56edf5dae5597a1d989554/autopart.sh"
+                                "https://gist.githubusercontent.com/trentmswanson/9c22bb71182e982bd36f/raw/47330d83bd884e88ef56edf5dae5597a1d989554/autopart.sh",
+                                "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/installes.sh",
+                                "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/setupall.sh"
                               ],
-                              "commandToExecute": "bash autopart.sh"
+                              "commandToExecute": "sh setupall.sh"
                             }
                           }
-                        },
-                        {
-                            "name": "esinstall-ext",
-                            "properties": {
-                              "publisher": "Microsoft.OSTCExtensions",
-                              "type": "CustomScriptForLinux",
-                              "typeHandlerVersion": "1.4",
-                              "autoUpgradeMinorVersion": true,
-                              "settings": {
-                                "fileUris": [
-                                  "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/installes.sh"
-                                ],
-                                "commandToExecute": "[concat('sh ', 'installes.sh')]"
-                              }
-                            }
-                          }                  
+                        }                                       
                     ]
                 }
               }

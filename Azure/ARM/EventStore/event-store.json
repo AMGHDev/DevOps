@@ -393,15 +393,29 @@
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    },
-                    /* allow LB traffic on http and nat'd ports */
+                    },                    
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-lb-ext-http')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-int-int')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "[variables('internalSubnetPrefix')]",
+                            "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
+                            "access": "Allow",
+                            "priority": 1220,
+                            "direction": "Inbound",
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-any-ext-http')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
                             "destinationPortRange": "2113",
-                            "sourceAddressPrefix": "AzureLoadBalancer",
+                            "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Allow",
                             "priority": 1300,
@@ -411,15 +425,45 @@
                         }
                     },
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-lb-ext-tcp')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-any-nat-tcp')]",
                         "properties": {
                             "protocol": "*",
-                            "sourcePortRange": "1113-1123",
-                            "destinationPortRange": "1113",
-                            "sourceAddressPrefix": "AzureLoadBalancer",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "1113-1123",
+                            "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1310,
+                            "priority": 1300,
+                            "direction": "Inbound",
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-ext-ext-http')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2113",
+                            "sourceAddressPrefix": "[variables('externalSubnetPrefix')]",
+                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
+                            "access": "Allow",
+                            "priority": 1400,
+                            "direction": "Inbound",
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-ext-ext-tcp')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "1113",
+                            "sourceAddressPrefix": "[variables('externalSubnetPrefix')]",
+                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
+                            "access": "Allow",
+                            "priority": 1410,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []

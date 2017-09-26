@@ -839,18 +839,15 @@ sudo apt-get update && sudo apt-get install azure-cli
                 "extensionProfile": {
                     "extensions": [                            
                         {
-                            "name": "config-app",
-                            "type": "extensions",
-                            "location": "[resourceGroup().location]",
-                            "apiVersion": "2015-06-15",
+                            "name": "run-post-setup",                            
                           "properties": {
-                            "publisher": "Microsoft.Azure.Extensions",
-                            "type": "CustomScript",
-                            "typeHandlerVersion": "2.0",
+                            "publisher": "Microsoft.OSTCExtensions",
+                            "type": "CustomScriptForLinux",
+                            "typeHandlerVersion": "1.4",
                             "autoUpgradeMinorVersion": true,
                             "settings": {
                               "fileUris": [
-                                "https://gist.githubusercontent.com/trentmswanson/9c22bb71182e982bd36f/raw/47330d83bd884e88ef56edf5dae5597a1d989554/autopart.sh",
+                                "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/autopart.sh",
                                 "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/installes.sh",
                                 "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/setupall.sh"
                               ],
@@ -868,7 +865,7 @@ sudo apt-get update && sudo apt-get install azure-cli
             }
           }
         
-        /* end network */       
+        /* end network */          
     ]
 }
 

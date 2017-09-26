@@ -106,11 +106,9 @@
         "shortNamingPrefix": "[concat(parameters('masterPrefix'),parameters('randomMix'),'es')]",
         "longNamingPrefix": "[concat(parameters('masterPrefix'),'-',parameters('randomMix'), '-eventstore')]",
         "dnsName": "[variables('longNamingPrefix')]",        
-        "eventStoreName": "[variables('longNamingPrefix')]",        
-        "gatewaySubnetPrefix": "10.0.1.0/24",
+        "eventStoreName": "[variables('longNamingPrefix')]",
         "externalSubnetPrefix": "10.0.2.0/24",
-        "internalSubnetPrefix": "10.0.3.0/28",
-        "gatewaySubnetName": "[concat(variables('longNamingPrefix'), '-subnet-gateway')]",
+        "internalSubnetPrefix": "10.0.3.0/28",        
         "externalSubnetName": "[concat(variables('longNamingPrefix'), '-subnet-external')]",
         "internalSubnetName": "[concat(variables('longNamingPrefix'), '-subnet-internal')]",
         "virtualNetworkName": "[concat(variables('longNamingPrefix'), '-vnet')]",
@@ -130,16 +128,7 @@
             "sku": "[parameters('ubuntuOSVersion')]",
             "version": "latest"
         },
-        "imageReference": "[variables('osType')]",
-
-        "appGatewayName": "[concat(variables('longNamingPrefix'),'-gateway')]",
-        "appGatewayHttpListenerName": "[concat(variables('longNamingPrefix'),'-gateway-listener')]",
-        "appGatewayBackendPoolName": "[concat(variables('longNamingPrefix'),'-gateway-pool')]",
-        "appGatewayBackendHttpSettingsName": "[concat(variables('longNamingPrefix'),'-gateway-settings')]",
-        "appGatewayFrontendPortName": "[concat(variables('longNamingPrefix'),'-gateway-port')]",
-        "appGatewayFrontendIPName": "[concat(variables('longNamingPrefix'),'-gateway-ip')]",
-        "appGatewayCertificateName": "[concat(variables('longNamingPrefix'),'-gateway-cert')]",
-        "applicationGatewayID": "[resourceId('Microsoft.Network/applicationGateways',variables('appGatewayName'))]",        
+        "imageReference": "[variables('osType')]",              
 
         "jumpBoxName": "[concat(variables('shortNamingPrefix'), 'jbox')]",
         "jumpBoxPublicIPAddressName": "[concat(variables('longNamingPrefix'), '-jumpbox-ip')]",
@@ -160,19 +149,12 @@
             "location": "[variables('computeLocation')]",
             "properties": {
                 "addressSpace": {
-                    "addressPrefixes": [
-                        "[variables('gatewaySubnetPrefix')]",
+                    "addressPrefixes": [                        
                         "[variables('externalSubnetPrefix')]",
                         "[variables('internalSubnetPrefix')]"
                     ]
                 },
-                "subnets": [
-                    {
-                        "name": "[variables('gatewaySubnetName')]",
-                        "properties": {
-                            "addressPrefix": "[variables('gatewaySubnetPrefix')]"                           
-                        }
-                    },
+                "subnets": [                    
                     {
                         "name": "[variables('externalSubnetName')]",
                         "properties": {
@@ -200,23 +182,7 @@
                 "resourceType": "Event Store",
                 "eventStoreName": "[variables('eventStoreName')]"
             }
-        },/*       
-        {
-            "type": "Microsoft.Network/publicIPAddresses",
-            "name": "[variables('publicIPAddressName')]",
-            "location": "[variables('computeLocation')]",
-            "apiVersion": "2016-03-30",
-            "tags": {
-                "resourceType": "Event Store",
-                "eventStoreName": "[variables('eventStoreName')]"
-            },
-            "properties": {
-                "publicIPAllocationMethod": "Dynamic",
-                "dnsSettings": {
-                    "domainNameLabel": "[concat(variables('longNamingPrefix'), '-management')]"
-                }
-            }
-        },*/
+        },
         {
             "type": "Microsoft.Network/publicIPAddresses",
             "name": "[variables('loadBalancerIpAddressName')]",
@@ -339,17 +305,6 @@
                     ]
                 }
             }
-            /* jump box installations:
-
-            echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" | \
-     sudo tee /etc/apt/sources.list.d/azure-cli.list
-
-sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
-sudo apt-get install apt-transport-https
-sudo apt-get update && sudo apt-get install azure-cli
-
-
-            */
         },
         {
             "name": "[variables('jumpBoxPublicIPAddressName')]",
@@ -375,8 +330,8 @@ sudo apt-get update && sudo apt-get install azure-cli
             "location": "[variables('computeLocation')]",
             "properties": {
                 "securityRules": [
-                    /* add open rules for any that need to access the jump box */ 
-                                  
+                    /* add open rules for IPs that need to access the jump box */
+                    /* JB: allow ONLY :22 traffic from jumpbox */
                     {
                         "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-jb-external-ssh')]",
                         "properties": {
@@ -386,7 +341,7 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "sourceAddressPrefix": "10.0.2.4",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1400,
+                            "priority": 1100,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
@@ -401,44 +356,62 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "sourceAddressPrefix": "10.0.2.4",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Deny",
-                            "priority": 1500,
+                            "priority": 1110,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    },                 
+                    }, 
+                    /* end JB */  
+                    /* allows azure internal traffic on the internal ES subnet for http and tcp */              
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-int')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-vnet-int-http')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "*",
+                            "destinationPortRange": "2113",
                             "sourceAddressPrefix": "VirtualNetwork",
                             "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1600,
+                            "priority": 1200,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
                     },
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-any-ext')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-vnet-int-tcp')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "*",
+                            "destinationPortRange": "1113",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
+                            "access": "Allow",
+                            "priority": 1210,
+                            "direction": "Inbound",
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    /* allow LB traffic on http and nat'd ports */
+                    {
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-lb-ext-http')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "2113",
+                            "sourceAddressPrefix": "AzureLoadBalancer",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1700,
+                            "priority": 1300,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
                     },
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-lb-ext')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-lb-ext-tcp')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "1113-1123",
@@ -446,12 +419,13 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "sourceAddressPrefix": "AzureLoadBalancer",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1800,
+                            "priority": 1310,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    }/*,
+                    },
+                    /* deny everything else */
                     {
                         "name": "[concat(variables('networkSecurityGroupName'), '-rule-deny-all')]",
                         "properties": {
@@ -461,12 +435,12 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "*",
                             "access": "Deny",
-                            "priority": 2000,
+                            "priority": 1500,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    }*/
+                    }
                 ],
                 "defaultSecurityRules": [
                     {
@@ -575,117 +549,6 @@ sudo apt-get update && sudo apt-get install azure-cli
                 "eventStoreName": "[variables('eventStoreName')]"
             }
         },
-        /* application gateway */   
-        {
-            "apiVersion": "2017-03-01",
-            "name": "[variables('appGatewayName')]",
-            "type": "Microsoft.Network/applicationGateways",
-            "location": "[variables('computeLocation')]",
-            "dependsOn": [
-              "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
-            ],
-            "properties": {
-              "sku": {
-                "name": "Standard_Small",
-                "tier": "Standard",
-                "capacity": 1
-              },
-              "gatewayIPConfigurations": [
-                {
-                  "name": "[concat(variables('longNamingPrefix'),'-gateway-config')]",
-                  "properties": {
-                    "subnet": {
-                      "id": "[concat(variables('vnetID'),'/subnets/',variables('gatewaySubnetName'))]"
-                    }
-                  }
-                }
-              ], 
-			  /* if you do not want an SSL cert, comment out the "sslCertificates" node below */
-              "sslCertificates": [
-                  {
-                      "name": "[variables('appGatewayCertificateName')]",                      
-                      "properties": {                          
-                          "password":"[parameters('certificatePassword')]",                          
-                          "data":"[parameters('certificateBase64EncodedValue')]"
-                      }
-                  }
-              ],             
-              "frontendIPConfigurations": [
-                {
-                  "name": "[variables('appGatewayFrontendIPName')]",
-                  "properties": {
-                    "subnet":{
-                        "id":"[concat(variables('vnetID'),'/subnets/',variables('gatewaySubnetName'))]"
-                    }
-                  }
-                }
-              ],
-              "frontendPorts": [
-                {
-                  "name": "[variables('appGatewayFrontendPortName')]",
-                  "properties": {
-                    "Port": 443
-                  }
-                }
-              ],
-              "backendAddressPools": [
-                {
-                  "name": "[variables('appGatewayBackendPoolName')]",
-                  "properties": {
-                  }
-                }
-              ],
-              "backendHttpSettingsCollection": [
-                {
-                  "name": "[variables('appGatewayBackendHttpSettingsName')]",
-                  "properties": {
-                    "Port": 2113,
-                    "Protocol": "Http",
-                    "CookieBasedAffinity": "Disabled"
-                  }
-                }
-              ],
-              "httpListeners": [
-                {
-                  "name": "[variables('appGatewayHttpListenerName')]",
-                  "properties": {
-                    "FrontendIPConfiguration": {
-                      "Id": "[concat(variables('applicationGatewayID'), '/frontendIPConfigurations/',variables('appGatewayFrontendIPName'))]"
-                    },
-                    "FrontendPort": {
-                      "Id": "[concat(variables('applicationGatewayID'), '/frontendPorts/', variables('appGatewayFrontendPortName'))]"
-                    },
-                    "Protocol": "Https",
-                    "SslCertificate": {
-                        "id":"[concat(variables('applicationGatewayID'), '/sslCertificates/',variables('appGatewayCertificateName'))]"
-                    }
-                  }
-                }
-              ],
-              "requestRoutingRules": [
-                {
-                  "Name": "[concat(variables('longNamingPrefix'),'-gateway-rule')]",
-                  "properties": {
-                    "RuleType": "Basic",
-                    "httpListener": {
-                      "id": "[concat(variables('applicationGatewayID'), '/httpListeners/', variables('appGatewayHttpListenerName'))]"
-                    },
-                    "backendAddressPool": {
-                      "id": "[concat(variables('applicationGatewayID'), '/backendAddressPools/', variables('appGatewayBackendPoolName'))]"
-                    },
-                    "backendHttpSettings": {
-                      "id": "[concat(variables('applicationGatewayID'), '/backendHttpSettingsCollection/', variables('appGatewayBackendHttpSettingsName'))]"
-                    }
-                  }
-                }
-              ]
-            },
-            "tags": {
-                "resourceType": "Event Store",
-                "eventStoreName": "[variables('eventStoreName')]"
-            }
-          },  /* end gateway*/   
-        
        {
            "apiVersion": "2015-06-15",
            "type": "Microsoft.Network/loadBalancers",
@@ -709,10 +572,42 @@ sudo apt-get update && sudo apt-get install azure-cli
                   }
                 }
             ],
+            "probes":[
+                {
+                    "name": "[concat(variables('loadBalancerName'),'-http-probe')]",
+                    "properties":{
+                        "port": "2113",
+                        "protocol": "Http",
+                        "intervalInSeconds": 5,
+                        "requestPath": "/web/index.html",
+                        "numberOfProbes": 3
+                    }
+                }
+            ],
+            "loadBalancingRules":[
+                {
+                    "name": "[concat(variables('loadBalancerName'),'-http-lb')]", 
+                    "properties":{
+                        "backendPort": 2113,
+                        "backendAddressPool": {
+                            "id": "[concat(variables('loadBalancerId'), '/backendAddressPools/', variables('loadBalancerName'),'-address-pool')]"
+                        },
+                        "probe":{
+                            "id": "[concat(variables('loadBalancerId'),'/probes/',variables('loadBalancerName'),'-http-probe')]"
+                        },
+                        "frontendIPConfiguration":{
+                            "id": "[concat(variables('loadBalancerId'),'/frontendIPConfigurations/',variables('loadBalancerName'),'-external-ip-config')]"
+                        },
+                        "frontendPort": 80,
+                        "protocol": "Tcp"                        
+                    }
+                }
+            ],
             "backendAddressPools": [
                 {
-                  "name": "[concat(variables('loadBalancerName'),'-address-pool')]",
-                  "properties": {}
+                  "name": "[concat(variables('loadBalancerName'),'-address-pool')]",                  
+                  "properties": {                      
+                  }
                 }
               ],
               "inboundNatPools": [                
@@ -797,9 +692,9 @@ sudo apt-get update && sudo apt-get install azure-cli
                               "subnet": {
                                 "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'), '/subnets/', variables('externalSubnetName'))]"
                               },
-                              "ApplicationGatewayBackendAddressPools":[
+                              "loadBalancerBackendAddressPools":[
                                   {
-                                  "id": "[concat(variables('applicationGatewayID'), '/backendAddressPools/', variables('appGatewayBackendPoolName'))]"
+                                  "id": "[concat(variables('loadBalancerId'), '/backendAddressPools/', concat(variables('loadBalancerName'),'-address-pool'))]"
                               }
                             ],
                             "loadBalancerInboundNatPools": [
@@ -844,11 +739,12 @@ sudo apt-get update && sudo apt-get install azure-cli
                             "publisher": "Microsoft.OSTCExtensions",
                             "type": "CustomScriptForLinux",
                             "typeHandlerVersion": "1.4",
-                            "autoUpgradeMinorVersion": true,
+                            "autoUpgradeMinorVersion": false,
                             "settings": {
                               "fileUris": [
                                 "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/autopart.sh",
                                 "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/installes.sh",
+                                "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/installdup.sh",
                                 "https://raw.githubusercontent.com/AMGHDev/DevOps/master/Azure/ARM/EventStore/setupall.sh"
                               ],
                               "commandToExecute": "sh setupall.sh"
@@ -863,30 +759,6 @@ sudo apt-get update && sudo apt-get install azure-cli
                 "resourceType": "Event Store",
                 "eventStoreName": "[variables('eventStoreName')]"
             }
-          }
-        
-        /* end network */          
+          } 
     ]
 }
-
-/*
-for the disk adding https://docs.microsoft.com/en-us/azure/virtual-machines/linux/add-disk
-view: dmesg | grep SCSI
-sudo fdisk /dev/sdc
-args: n, p, defaults, w
-*** then args ***
-sudo mkfs -t ext4 /dev/sdc1
-sudo mkdir /data
-sudo mount /dev/sdc1 /data
-sudo -i blkid
-
-sudo vi /etc/fstab
-i to insert, then edit, add line:
-UUID=33333333-3b3b-3c3c-3d3d-3e3e3e3e3e3e   /data   ext4   defaults,discard   1   2
-
-then ESC back to cmd, then :wq to save and exit
-
-$PublicConfiguration = '{"fileUris":
-[""],
-"commandToExecute": "bash autopart.sh" }'
-*/

@@ -433,7 +433,7 @@
                             "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1300,
+                            "priority": 1310,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []

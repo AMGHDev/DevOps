@@ -37,7 +37,7 @@ RunProjections: All
 ClusterSize: 2
 DiscoverViaDns: False
 
-GossipSeed: 10.0.3.5:2112,10.0.3.6:2112,10.0.3.7:2112,10.0.3.8:2112
+GossipSeed: 10.0.2.5:2112,10.0.2.6:2112,10.0.2.7:2112,10.0.2.8:2112
 EOF'
 
 fi

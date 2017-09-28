@@ -22,22 +22,30 @@ else
     sudo rm eventstore.conf
 	
 	sudo sh -c 'cat << EOF >> eventstore.conf
-IntIp: 10.0.2.5
-ExtIp: 0.0.0.0
-
-IntHttpPrefixes: http://10.0.2.5:2112/
-ExtHttpPrefixes: http://*:2113/
+IntIp: 0.0.0.0
+IntHttpPrefixes: http://*:2112/
+ExtIp: 10.0.2.?
+ExtHttpPrefixes: http://10.0.2.5:2113/
+IntIpAdvertiseAs: 10.0.2.?
 
 Db: /data1/esdb
-Index: /data1/esindex
 Log: /data1/eslogs
+Index: /data1/esindex
 
 AddInterfacePrefixes: false
 RunProjections: All
 ClusterSize: 2
-DiscoverViaDns: False
+DiscoverViaDns: false
 
 GossipSeed: 10.0.2.5:2112,10.0.2.6:2112,10.0.2.7:2112,10.0.2.8:2112
 EOF'
+
+sudo sh -c 'cat << EOF >> /etc/security/limits.conf
+*         hard    nofile      500000
+*         soft    nofile      500000
+root      hard    nofile      500000
+root      soft    nofile      500000
+EOF'
+
 
 fi

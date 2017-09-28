@@ -40,12 +40,5 @@ DiscoverViaDns: false
 GossipSeed: 10.0.2.5:2112,10.0.2.6:2112,10.0.2.7:2112,10.0.2.8:2112
 EOF'
 
-sudo sh -c 'cat << EOF >> /etc/security/limits.conf
-*         hard    nofile      500000
-*         soft    nofile      500000
-root      hard    nofile      500000
-root      soft    nofile      500000
-EOF'
-
 
 fi

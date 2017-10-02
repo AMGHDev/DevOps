@@ -5,7 +5,7 @@
         "masterPrefix": {
             "value": "specify"
         },
-        "randomMix": {
+        "randomSubPrefix": {
             "value": "anything"
         },
         "eventStoreAdminUsername": {
@@ -19,6 +19,15 @@
         },
         "jumpBoxAdminPassword": {
             "value": ""
+        },
+        "vmSize": {
+            "value": "Standard_DS1_V2"
+        },
+        "storageAccountType": {
+            "value": "Premium_LRS"
+        },
+        "storageSizeInGB": {
+            "value": 256
         },
         "instanceCount": {
             "value": 2

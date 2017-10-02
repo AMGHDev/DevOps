@@ -15,6 +15,7 @@ else
     sudo mkdir -p /data1/eslogs
     sudo chown eventstore:eventstore /data1/esdb
     sudo chown eventstore:eventstore /data1/esindex
+	sudo chown eventstore:eventstore /data1/eslogs
     cd /etc/eventstore/
     sudo rm eventstore.conf
 fi

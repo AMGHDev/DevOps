@@ -4,16 +4,15 @@
     "parameters": {
         "masterPrefix": {
             "type": "string",            
-            "defaultValue": "pre",
             "metadata": {
                 "description": "Initial prefix for all resource names"
             }
         },
-        "randomMix": {
-            "type": "string",           
-            "defaultValue": "X123",
+        "randomSubPrefix": {
+            "type": "string",            
+            "defaultValue": "ABC32",
             "metadata": {
-                "description": "Environment name for resource naming"
+                "description": "A random subprefix for unique naming"
             }
         },
         "eventStoreAdminUsername": {
@@ -103,14 +102,14 @@
     },
     "variables": {
         "computeLocation": "[resourceGroup().location]",        
-        "shortNamingPrefix": "[concat(parameters('masterPrefix'),parameters('randomMix'),'es')]",
-        "longNamingPrefix": "[concat(parameters('masterPrefix'),'-',parameters('randomMix'), '-eventstore')]",
+        "shortNamingPrefix": "[concat(parameters('masterPrefix'),parameters('randomSubPrefix'),'es')]",
+        "longNamingPrefix": "[concat(parameters('masterPrefix'),'-',parameters('randomSubPrefix'), '-eventstore')]",
         "dnsName": "[variables('longNamingPrefix')]",        
-        "eventStoreName": "[variables('longNamingPrefix')]",
-        "externalSubnetPrefix": "10.0.2.0/24",
-        "internalSubnetPrefix": "10.0.3.0/28",        
-        "externalSubnetName": "[concat(variables('longNamingPrefix'), '-subnet-external')]",
-        "internalSubnetName": "[concat(variables('longNamingPrefix'), '-subnet-internal')]",
+        "eventStoreName": "[variables('longNamingPrefix')]",        
+        "gatewaySubnetPrefix": "10.0.1.0/24",
+        "subnetPrefix": "10.0.2.0/24",
+        "gatewaySubnetName": "[concat(variables('longNamingPrefix'), '-subnet-gateway')]",
+        "subnetName": "[concat(variables('longNamingPrefix'), '-subnet-main')]",
         "virtualNetworkName": "[concat(variables('longNamingPrefix'), '-vnet')]",
         "publicIPAddressName": "[concat(variables('longNamingPrefix'), '-web-ip')]",        
         "publicIPAddressID": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]",
@@ -128,14 +127,23 @@
             "sku": "[parameters('ubuntuOSVersion')]",
             "version": "latest"
         },
-        "imageReference": "[variables('osType')]",              
+        "imageReference": "[variables('osType')]",
+
+        "appGatewayName": "[concat(variables('longNamingPrefix'),'-gateway')]",
+        "appGatewayHttpListenerName": "[concat(variables('longNamingPrefix'),'-gateway-listener')]",
+        "appGatewayBackendPoolName": "[concat(variables('longNamingPrefix'),'-gateway-pool')]",
+        "appGatewayBackendHttpSettingsName": "[concat(variables('longNamingPrefix'),'-gateway-settings')]",
+        "appGatewayFrontendPortName": "[concat(variables('longNamingPrefix'),'-gateway-port')]",
+        "appGatewayFrontendIPName": "[concat(variables('longNamingPrefix'),'-gateway-ip')]",
+        "appGatewayCertificateName": "[concat(variables('longNamingPrefix'),'-gateway-cert')]",
+        "applicationGatewayID": "[resourceId('Microsoft.Network/applicationGateways',variables('appGatewayName'))]",        
 
         "jumpBoxName": "[concat(variables('shortNamingPrefix'), 'jbox')]",
         "jumpBoxPublicIPAddressName": "[concat(variables('longNamingPrefix'), '-jumpbox-ip')]",
         "jumpBoxIPConfigName": "[concat(variables('longNamingPrefix'), '-jbox-ipconfig')]",
         "jumpBoxNicName": "[concat(variables('longNamingPrefix'), '-jbox-nic')]",
         "jumpBoxStorageAccountName":"[concat(variables('shortNamingPrefix'),'jboxstorage')]",
-        "jumpBoxSubnetRef": "[concat(variables('vnetID'),'/subnets/',variables('externalSubnetName'))]",
+        "jumpBoxSubnetRef": "[concat(variables('vnetID'),'/subnets/',variables('subnetName'))]",
 
         "computeApiVersion": "2017-03-30",
         "networkApiVersion": "2017-04-01",
@@ -149,27 +157,24 @@
             "location": "[variables('computeLocation')]",
             "properties": {
                 "addressSpace": {
-                    "addressPrefixes": [                        
-                        "[variables('externalSubnetPrefix')]",
-                        "[variables('internalSubnetPrefix')]"
+                    "addressPrefixes": [
+                        "[variables('gatewaySubnetPrefix')]",
+                        "[variables('subnetPrefix')]"
                     ]
                 },
-                "subnets": [                    
+                "subnets": [
                     {
-                        "name": "[variables('externalSubnetName')]",
+                        "name": "[variables('gatewaySubnetName')]",
                         "properties": {
-                            "addressPrefix": "[variables('externalSubnetPrefix')]",
-                            "networkSecurityGroup": {
-                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
-                            }
+                            "addressPrefix": "[variables('gatewaySubnetPrefix')]"                           
                         }
                     },
                     {
-                        "name": "[variables('internalSubnetName')]",
+                        "name": "[variables('subnetName')]",
                         "properties": {
-                            "addressPrefix": "[variables('internalSubnetPrefix')]",
+                            "addressPrefix": "[variables('subnetPrefix')]",
                             "networkSecurityGroup": {
-                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"     
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
                             }
                         }
                     }
@@ -181,6 +186,22 @@
             "tags": {
                 "resourceType": "Event Store",
                 "eventStoreName": "[variables('eventStoreName')]"
+            }
+        },       
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "name": "[variables('publicIPAddressName')]",
+            "location": "[variables('computeLocation')]",
+            "apiVersion": "2016-03-30",
+            "tags": {
+                "resourceType": "Event Store",
+                "eventStoreName": "[variables('eventStoreName')]"
+            },
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                    "domainNameLabel": "[concat(variables('longNamingPrefix'), '-management')]"
+                }
             }
         },
         {
@@ -304,7 +325,7 @@
                         }
                     ]
                 }
-            }
+            }           
         },
         {
             "name": "[variables('jumpBoxPublicIPAddressName')]",
@@ -330,16 +351,16 @@
             "location": "[variables('computeLocation')]",
             "properties": {
                 "securityRules": [
-                    /* add open rules for IPs that need to access the jump box */
-                    /* JB: allow ONLY :22 traffic from jumpbox */
+                    /* add open rules for any that need to access the jump box */
+                    /* jump box rules */ 
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-jb-external-ssh')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-jb-main-ssh')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
                             "destinationPortRange": "22",
                             "sourceAddressPrefix": "10.0.2.4",
-                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
+                            "destinationAddressPrefix": "[variables('subnetPrefix')]",
                             "access": "Allow",
                             "priority": 1100,
                             "direction": "Inbound",
@@ -354,24 +375,23 @@
                             "sourcePortRange": "*",
                             "destinationPortRange": "*",
                             "sourceAddressPrefix": "10.0.2.4",
-                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
+                            "destinationAddressPrefix": "[variables('subnetPrefix')]",
                             "access": "Deny",
                             "priority": 1110,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
                         }
-                    }, 
-                    /* end JB */  
-                    /* allows azure internal traffic on the internal ES subnet for http and tcp */              
+                    }, /* end JB rules */               
+                    
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-vnet-int-http')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-any-main')]",
                         "properties": {
                             "protocol": "*",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "2113",
-                            "sourceAddressPrefix": "VirtualNetwork",
-                            "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "[variables('subnetPrefix')]",
                             "access": "Allow",
                             "priority": 1200,
                             "direction": "Inbound",
@@ -380,106 +400,15 @@
                         }
                     },
                     {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-vnet-int-tcp')]",
+                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-lb-ext')]",
                         "properties": {
                             "protocol": "*",
-                            "sourcePortRange": "*",
+                            "sourcePortRange": "1113-1123",
                             "destinationPortRange": "1113",
-                            "sourceAddressPrefix": "VirtualNetwork",
-                            "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
+                            "sourceAddressPrefix": "AzureLoadBalancer",
+                            "destinationAddressPrefix": "[variables('subnetPrefix')]",
                             "access": "Allow",
-                            "priority": 1210,
-                            "direction": "Inbound",
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },                    
-                    {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-int-int')]",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "[variables('internalSubnetPrefix')]",
-                            "destinationAddressPrefix": "[variables('internalSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 1220,
-                            "direction": "Inbound",
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-any-ext-http')]",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "2113",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 1300,
-                            "direction": "Inbound",
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-any-nat-tcp')]",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "1113-1123",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 1310,
-                            "direction": "Inbound",
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-ext-ext-http')]",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "2113",
-                            "sourceAddressPrefix": "[variables('externalSubnetPrefix')]",
-                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 1400,
-                            "direction": "Inbound",
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-allow-ext-ext-tcp')]",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "1113",
-                            "sourceAddressPrefix": "[variables('externalSubnetPrefix')]",
-                            "destinationAddressPrefix": "[variables('externalSubnetPrefix')]",
-                            "access": "Allow",
-                            "priority": 1410,
-                            "direction": "Inbound",
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    /* deny everything else */
-                    {
-                        "name": "[concat(variables('networkSecurityGroupName'), '-rule-deny-all')]",
-                        "properties": {
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "*",
-                            "access": "Deny",
-                            "priority": 1500,
+                            "priority": 1800,
                             "direction": "Inbound",
                             "sourceAddressPrefixes": [],
                             "destinationAddressPrefixes": []
@@ -593,6 +522,117 @@
                 "eventStoreName": "[variables('eventStoreName')]"
             }
         },
+        /* application gateway */   
+        {
+            "apiVersion": "2017-03-01",
+            "name": "[variables('appGatewayName')]",
+            "type": "Microsoft.Network/applicationGateways",
+            "location": "[variables('computeLocation')]",
+            "dependsOn": [
+              "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+              "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]"
+            ],
+            "properties": {
+              "sku": {
+                "name": "Standard_Small",
+                "tier": "Standard",
+                "capacity": 1
+              },
+              "gatewayIPConfigurations": [
+                {
+                  "name": "[concat(variables('longNamingPrefix'),'-gateway-config')]",
+                  "properties": {
+                    "subnet": {
+                      "id": "[concat(variables('vnetID'),'/subnets/',variables('gatewaySubnetName'))]"
+                    }
+                  }
+                }
+              ], 
+              "sslCertificates": [
+                  {
+                      "name": "[variables('appGatewayCertificateName')]",                      
+                      "properties": {                          
+                          "password":"[parameters('certificatePassword')]",                          
+                          "data":"[parameters('certificateBase64EncodedValue')]"
+                      }
+                  }
+              ],             
+              "frontendIPConfigurations": [
+                {
+                  "name": "[variables('appGatewayFrontendIPName')]",
+                  "properties": {
+                    "PublicIPAddress": {
+                      "id": "[variables('publicIPAddressID')]"
+                    }
+                  }
+                }
+              ],
+              "frontendPorts": [
+                {
+                  "name": "[variables('appGatewayFrontendPortName')]",
+                  "properties": {
+                    "Port": 443
+                  }
+                }
+              ],
+              "backendAddressPools": [
+                {
+                  "name": "[variables('appGatewayBackendPoolName')]",
+                  "properties": {
+                  }
+                }
+              ],
+              "backendHttpSettingsCollection": [
+                {
+                  "name": "[variables('appGatewayBackendHttpSettingsName')]",
+                  "properties": {
+                    "Port": 2112,
+                    "Protocol": "Http",
+                    "CookieBasedAffinity": "Disabled"
+                  }
+                }
+              ],
+              "httpListeners": [
+                {
+                  "name": "[variables('appGatewayHttpListenerName')]",
+                  "properties": {
+                    "FrontendIPConfiguration": {
+                      "Id": "[concat(variables('applicationGatewayID'), '/frontendIPConfigurations/',variables('appGatewayFrontendIPName'))]"
+                    },
+                    "FrontendPort": {
+                      "Id": "[concat(variables('applicationGatewayID'), '/frontendPorts/', variables('appGatewayFrontendPortName'))]"
+                    },
+                    "Protocol": "Https",
+                    "SslCertificate": {
+                        "id":"[concat(variables('applicationGatewayID'), '/sslCertificates/',variables('appGatewayCertificateName'))]"
+                    }
+                  }
+                }
+              ],
+              "requestRoutingRules": [
+                {
+                  "Name": "[concat(variables('longNamingPrefix'),'-gateway-rule')]",
+                  "properties": {
+                    "RuleType": "Basic",
+                    "httpListener": {
+                      "id": "[concat(variables('applicationGatewayID'), '/httpListeners/', variables('appGatewayHttpListenerName'))]"
+                    },
+                    "backendAddressPool": {
+                      "id": "[concat(variables('applicationGatewayID'), '/backendAddressPools/', variables('appGatewayBackendPoolName'))]"
+                    },
+                    "backendHttpSettings": {
+                      "id": "[concat(variables('applicationGatewayID'), '/backendHttpSettingsCollection/', variables('appGatewayBackendHttpSettingsName'))]"
+                    }
+                  }
+                }
+              ]
+            },
+            "tags": {
+                "resourceType": "Event Store",
+                "eventStoreName": "[variables('eventStoreName')]"
+            }
+          },  /* end gateway*/   
+        
        {
            "apiVersion": "2015-06-15",
            "type": "Microsoft.Network/loadBalancers",
@@ -616,42 +656,10 @@
                   }
                 }
             ],
-            "probes":[
-                {
-                    "name": "[concat(variables('loadBalancerName'),'-http-probe')]",
-                    "properties":{
-                        "port": "2113",
-                        "protocol": "Http",
-                        "intervalInSeconds": 5,
-                        "requestPath": "/web/index.html",
-                        "numberOfProbes": 3
-                    }
-                }
-            ],
-            "loadBalancingRules":[
-                {
-                    "name": "[concat(variables('loadBalancerName'),'-http-lb')]", 
-                    "properties":{
-                        "backendPort": 2113,
-                        "backendAddressPool": {
-                            "id": "[concat(variables('loadBalancerId'), '/backendAddressPools/', variables('loadBalancerName'),'-address-pool')]"
-                        },
-                        "probe":{
-                            "id": "[concat(variables('loadBalancerId'),'/probes/',variables('loadBalancerName'),'-http-probe')]"
-                        },
-                        "frontendIPConfiguration":{
-                            "id": "[concat(variables('loadBalancerId'),'/frontendIPConfigurations/',variables('loadBalancerName'),'-external-ip-config')]"
-                        },
-                        "frontendPort": 80,
-                        "protocol": "Tcp"                        
-                    }
-                }
-            ],
             "backendAddressPools": [
                 {
-                  "name": "[concat(variables('loadBalancerName'),'-address-pool')]",                  
-                  "properties": {                      
-                  }
+                  "name": "[concat(variables('loadBalancerName'),'-address-pool')]",
+                  "properties": {}
                 }
               ],
               "inboundNatPools": [                
@@ -676,7 +684,8 @@
             "location": "[resourceGroup().location]",
             "apiVersion": "[variables('computeApiVersion')]",
             "dependsOn": [
-              "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
+              "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+              "[variables('applicationGatewayID')]"
             ],
             "sku": {
               "name": "[parameters('vmSize')]",
@@ -707,8 +716,8 @@
                               "storageAccountType":"[parameters('storageAccountType')]"
                           }
                       }
-                      /* if you want the index drive separate, uncomment the below */                                            
-                      /*,{                          
+                      /* if you want the index-log drive separate, uncomment the below */                                            
+                     /* ,{                          
                         "lun": 3,
                         "createOption": "Empty",
                         "diskSizeGB": "256",
@@ -726,19 +735,19 @@
                 "networkProfile": {
                   "networkInterfaceConfigurations": [
                     {
-                      "name": "nic-external",
+                      "name": "nic-main",
                       "properties": {
                         "primary": true,
                         "ipConfigurations": [
                           {
-                            "name": "[concat(variables('ipConfigName'),'-external')]",
+                            "name": "[concat(variables('ipConfigName'),'-main')]",
                             "properties": {
                               "subnet": {
-                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'), '/subnets/', variables('externalSubnetName'))]"
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'), '/subnets/', variables('subnetName'))]"
                               },
-                              "loadBalancerBackendAddressPools":[
+                              "ApplicationGatewayBackendAddressPools":[
                                   {
-                                  "id": "[concat(variables('loadBalancerId'), '/backendAddressPools/', concat(variables('loadBalancerName'),'-address-pool'))]"
+                                  "id": "[concat(variables('applicationGatewayID'), '/backendAddressPools/', variables('appGatewayBackendPoolName'))]"
                               }
                             ],
                             "loadBalancerInboundNatPools": [
@@ -753,25 +762,6 @@
                             "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
                         }
                       }
-                    },
-                    {
-                        "name": "nic-internal",
-                        "properties": {
-                            "primary": false,
-                            "ipConfigurations": [
-                                {
-                                    "name": "[concat(variables('ipConfigName'),'-internal')]",
-                                    "properties": {
-                                        "subnet": {
-                                            "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'), '/subnets/', variables('internalSubnetName'))]"
-                                        }
-                                    }
-                                }
-                            ],
-                            "networkSecurityGroup": {
-                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
-                            }
-                        }
                     }
                   ]
                 }, 
@@ -803,6 +793,6 @@
                 "resourceType": "Event Store",
                 "eventStoreName": "[variables('eventStoreName')]"
             }
-          } 
+          }
     ]
 }

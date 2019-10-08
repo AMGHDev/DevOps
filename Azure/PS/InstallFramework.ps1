@@ -8,12 +8,55 @@
 
 [CmdletBinding()]
 Param(
-    [switch]$norestart
+    [string]$certName,
+    [switch]$norestart    
 )
 
 Set-StrictMode -Version Latest
-
 $logFile = Join-Path $env:TEMP -ChildPath "InstallNetFx47ScriptLog.txt"
+
+## cert install
+if ($certname -ne $null -and $certname -ne "") {
+    $subject=$certName
+    $userGroup="NETWORK SERVICE"
+
+    "Checking permissions to certificate $subject.." | Tee-Object -FilePath $logFile -Append
+
+    $cert = (gci Cert:\LocalMachine\My\ | where { $_.Subject.Contains($subject) })[-1]
+
+    if ($cert -eq $null)
+    {
+        $message="Certificate with subject:"+$subject+" does not exist at Cert:\LocalMachine\My\"
+        $message | Tee-Object -FilePath $logFile -Append
+    }elseif($cert.HasPrivateKey -eq $false){
+        $message="Certificate with subject:"+$subject+" does not have a private key"
+        $message | Tee-Object -FilePath $logFile -Append
+    }else
+    {
+        $keyName=$cert.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName
+
+        $keyPath = "C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\"
+        $fullPath=$keyPath+$keyName
+        $acl=(Get-Item $fullPath).GetAccessControl('Access')
+
+        $hasPermissionsAlready = ($acl.Access | where {$_.IdentityReference.Value.Contains($userGroup.ToUpperInvariant()) -and $_.FileSystemRights -eq [System.Security.AccessControl.FileSystemRights]::FullControl}).Count -eq 1
+
+        if ($hasPermissionsAlready){
+            "Account $userGroup already has permissions to certificate '$subject'." | Tee-Object -FilePath $logFile -Append
+        } else {
+            "Need add permissions to '$subject' certificate..." | Tee-Object -FilePath $logFile -Append
+
+	        $permission=$userGroup,"Full","Allow"
+	        $accessRule=new-object System.Security.AccessControl.FileSystemAccessRule $permission
+	        $acl.AddAccessRule($accessRule)
+	        Set-Acl $fullPath $acl
+
+	        "Permissions were added" | Tee-Object -FilePath $logFile -Append
+        }
+    }
+}
+### end cert
+
 
 # Check if the latest NetFx47 version exists
 $netFxKey = Get-ItemProperty -Path "HKLM:\SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full\\" -ErrorAction Ignore

@@ -12,7 +12,7 @@ Param(
     [string]$Channel="LTS",
     [string]$JSonFile,
     [switch]$norestart,
-    [string]$Version="3.1.102",
+    [string]$Version="Latest",
      [string]$Runtime,
     [string]$InstallDir="c:\program files\dotnet",
     [string]$Architecture="<auto>",

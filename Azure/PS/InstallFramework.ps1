@@ -77,9 +77,10 @@ if ($certname -ne $null -and $certname -ne "") {
 $ErrorActionPreference="Stop"
 $ProgressPreference="SilentlyContinue"
 
-if ($NoCdn) {
+$InstallDir = "c:\program files\dotnet"
+#if ($NoCdn) {
     $AzureFeed = $UncachedFeed
-}
+#}
 
 $BinFolderRelativePath=""
 

@@ -104,9 +104,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference="Stop"
 $ProgressPreference="SilentlyContinue"
 $InstallDir = "c:\program files\dotnet"
-if ($NoCdn) {
-    $AzureFeed = $UncachedFeed
-}
+#if ($NoCdn) {
+    $AzureFeed = $UncachedFeed # force no cdn
+#}
 
 $BinFolderRelativePath=""
 
